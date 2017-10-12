@@ -50,8 +50,9 @@ namespace badgerdb {
 
     void BufMgr::allocBuf(FrameId &frame) {
         // While page not found, keep looking for it
-        int countPinnLargerThan0 = 0;
-        while (1) {
+        std::uint32_t countPinnLargerThan0 = 0;
+        while (countPinnLargerThan0 < numBufs) {
+
             // Advance clock pointer
             advanceClock();
 
@@ -72,6 +73,7 @@ namespace badgerdb {
                 continue;
             } else if (cur.pinCnt > 0) { //If refbit not set, check if the page is pinned
                 // if pinned, advance clock
+                countPinnLargerThan0++;
                 continue;
             } else if (cur.dirty) { //If not, check if the dirty bit is set
                 // If yes, flush page to disk
@@ -85,8 +87,9 @@ namespace badgerdb {
                 return;
             }
 
-
         }
+        //If all the buffer frames are pinned, throw bufferExceededException
+        throw BufferExceededException();
     }
 
 
