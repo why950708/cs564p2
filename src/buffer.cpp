@@ -72,17 +72,15 @@ namespace badgerdb {
                 // go back to advance clock
                 continue;
             } else if (cur.pinCnt > 0) { //If refbit not set, check if the page is pinned
-                // if pinned, advance clock
+                // if pinned, advance clock, increment count of pinned frames
                 countPinnLargerThan0++;
                 continue;
             } else if (cur.dirty) { //If not, check if the dirty bit is set
-                // If yes, flush page to disk
                 //If yes, flush page to disk and use the page
-                // TODO:// find the file
-                flushFile(NULL);
+                flushFile(cur.file);
                 frame = clockHand;
                 return;
-            } else { // if it is not dirty, set on the frame and use the frame
+            } else { // if it is not dirty,  use the frame
                 frame = clockHand;
                 return;
             }
