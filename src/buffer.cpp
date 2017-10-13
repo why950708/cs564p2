@@ -41,12 +41,7 @@ namespace badgerdb {
         clockHand = (clockHand + 1) % numBufs;
     }
 
-    /*
-     * * Allocate a free frame.
-                      *
-                      * @param frame   	Frame reference, frame ID of allocated frame returned via this variable
-    * @throws BufferExceededException If no such buffer is found which can be allocated
-    */
+
 
     void BufMgr::allocBuf(FrameId &frame) {
         // While page not found, keep looking for it
@@ -61,6 +56,7 @@ namespace badgerdb {
             // then use the frame
             BufDesc cur = bufDescTable[clockHand];
             if (!cur.valid) {
+                hashTable->remove(cur.file,cur.pageNo);
                 frame = clockHand;
                 return;
             }
@@ -77,14 +73,12 @@ namespace badgerdb {
                 continue;
             } else if (cur.dirty) { //If not, check if the dirty bit is set
                 //If yes, flush page to disk and use the page
-                flushFile(cur.file);
-                frame = clockHand;
-                return;
-            } else { // if it is not dirty,  use the frame
-                frame = clockHand;
-                return;
+                cur.file->writePage(bufPool[cur.pageNo]);
             }
-
+             // if it is not dirty,  use the frame
+                hashTable->remove(cur.file,cur.pageNo);
+                frame = clockHand;
+                return;
         }
         //If all the buffer frames are pinned, throw bufferExceededException
         throw BufferExceededException();
@@ -92,6 +86,7 @@ namespace badgerdb {
 
 
     void BufMgr::readPage(File *file, const PageId pageNo, Page *&page) {
+
     }
 
 
