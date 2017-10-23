@@ -6,6 +6,7 @@
  */
 
 #include "invalid_page_exception.h"
+#include "../types.h"
 
 #include <sstream>
 #include <string>

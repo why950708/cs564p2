@@ -14,6 +14,7 @@
 #include "exceptions/bad_buffer_exception.h"
 #include "exceptions/hash_not_found_exception.h"
 #include "exceptions/invalid_page_exception.h"
+#include "exceptions/hash_already_present_exception.h"
 
 namespace badgerdb {
 
@@ -52,11 +53,10 @@ namespace badgerdb {
             advanceClock();
 
             //Check if the current frame is valid set
-            //If no, call "set()" on the frame
+            //If no
             // then use the frame
             BufDesc *cur = &bufDescTable[clockHand];
             if (!cur->valid) {
-                hashTable->remove(cur->file, cur->pageNo);
                 frame = clockHand;
                 return;
             }
@@ -184,10 +184,51 @@ namespace badgerdb {
     }
 
     void BufMgr::allocPage(File *file, PageId &pageNo, Page *&page) {
+        // Invoke empty page
+        Page newPage = file->allocatePage();
+
+        // Get a buffer pool frame
+        FrameId  frameId;
+        allocBuf(frameId);
+
+        // Entry into hash table
+        try {
+            hashTable->insert(file, newPage.page_number(), frameId);
+        } catch (HashAlreadyPresentException &e) {
+            std::cout<<"hash collision"<<e.message()<< std::endl;
+            exit(-1);
+        } catch (HashNotFoundException &e) {
+            std::cout<<"hash not found"<<e.message()<< std::endl;
+            exit(-1);
+        }
+
+        // Call the set on the buf table
+        bufDescTable[frameId].Set(file, newPage.page_number());
+
+        // Isnert the page into the bufPool;
+        bufPool[frameId] = newPage;
+
+        // Return values
+        page = &bufPool[frameId];
+        pageNo = newPage.page_number();
     }
 
     void BufMgr::disposePage(File *file, const PageId PageNo) {
+        // Try to find the page
+        FrameId frameId;
 
+        try{
+            hashTable->lookup(file,PageNo, frameId);
+            // If the page is found in the buffer pool, free the frame and deleter from hashTable
+            bufDescTable[frameId].Clear();
+            hashTable->remove(file, PageNo);
+
+        } catch (HashNotFoundException &e) {
+            // Print some message
+            std::cout << "the page trying to dispose is not in the buffer" << e.message() << std::endl;
+        }
+        // Delete the page from the file
+        file->deletePage(PageNo);
     }
 
     void BufMgr::printSelf(void) {

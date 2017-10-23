@@ -142,10 +142,10 @@ void testBufMgr()
 	//Commenting  a particular test requires commenting all tests that follow it else those tests would fail.
 	test1();
 	test2();
-	test3();
-	test4();
-	test5();
-	test6();
+//	test3();
+//	test4();
+//	test5();
+//	test6();
 
 	//Close files before deleting them
 	file1.~File();
