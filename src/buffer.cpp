@@ -74,11 +74,12 @@ namespace badgerdb {
                 continue;
             } else if (cur->dirty) { //If not, check if the dirty bit is set
                 //If yes, flush page to disk and use the page
-                cur->file->writePage(bufPool[cur->pageNo]);
+                cur->file->writePage(bufPool[cur->frameNo]);
             }
             // if it is not dirty,  use the frame
             hashTable->remove(cur->file, cur->pageNo);
             frame = clockHand;
+
             return;
         }
         //If all the buffer frames are pinned, throw bufferExceededException
@@ -97,14 +98,14 @@ namespace badgerdb {
             // Increment the pin count
             bufDescTable[frameId].pinCnt++;
             return;
-        } catch (HashNotFoundException e) {
+        } catch (HashNotFoundException &e) {
             // Case2: the page is not in the buffer
-
             try {
+                Page curPage = file->readPage(pageNo);
                 // Find the spot and replace the page inside the picked frame
                 allocBuf(frameId);
                 // Read the page from the file and insert it into the buf pool
-                bufPool[frameId] = file->readPage(pageNo);
+                bufPool[frameId] = curPage;
                 // Insert the page into the hash table
                 hashTable->insert(file, pageNo, frameId);
                 // Set the page in the desc table
@@ -148,7 +149,7 @@ namespace badgerdb {
         for (int i = 0; i < numBufs; i++) {
             BufDesc *buf = &bufDescTable[i];
             // TODO: might not be the same file
-            // If the file is not valid, throw BadBUfferException
+            // If the page belong to the file is not valid, throw BadBUfferException
             if (!buf->valid) {
                 throw BadBufferException(buf->frameNo,buf->dirty,buf->valid,buf->refbit);
             }
@@ -172,7 +173,7 @@ namespace badgerdb {
                 // Remove the page form the hash table
                 // TODO: may not need to catch the hashNotFound error
                 try {
-                    hashTable->remove(file, buf->pageNo);
+                    hashTable->remove(buf->file, buf->pageNo);
                 } catch(HashNotFoundException &e) {
                     std::cout <<"Trying flush file" << e.message() << std::endl;
                     exit(-1);
@@ -185,32 +186,32 @@ namespace badgerdb {
 
     void BufMgr::allocPage(File *file, PageId &pageNo, Page *&page) {
         // Invoke empty page
-        Page newPage = file->allocatePage();
+        Page curPage = file->allocatePage();
 
         // Get a buffer pool frame
-        FrameId  frameId;
+        FrameId frameId;
         allocBuf(frameId);
 
         // Entry into hash table
         try {
-            hashTable->insert(file, newPage.page_number(), frameId);
+            hashTable->insert(file, curPage.page_number(), frameId);
         } catch (HashAlreadyPresentException &e) {
-            std::cout<<"hash collision"<<e.message()<< std::endl;
+            std::cout << "hash collision" << e.message() << std::endl;
             exit(-1);
         } catch (HashNotFoundException &e) {
-            std::cout<<"hash not found"<<e.message()<< std::endl;
+            std::cout << "hash not found" << e.message() << std::endl;
             exit(-1);
         }
 
         // Call the set on the buf table
-        bufDescTable[frameId].Set(file, newPage.page_number());
+        bufDescTable[frameId].Set(file, curPage.page_number());
 
         // Isnert the page into the bufPool;
-        bufPool[frameId] = newPage;
+        bufPool[frameId] = curPage;
 
         // Return values
         page = &bufPool[frameId];
-        pageNo = newPage.page_number();
+        pageNo = curPage.page_number();
     }
 
     void BufMgr::disposePage(File *file, const PageId PageNo) {
