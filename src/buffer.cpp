@@ -67,12 +67,14 @@ namespace badgerdb {
                 cur->refbit = false;
                 // go back to advance clock
                 continue;
-            } else if (cur->pinCnt >
+            }
+            if (cur->pinCnt >
                        0) { //If refbit not set, check if the page is pinned
                 // if pinned, advance clock, increment count of pinned frames
                 countPinnLargerThan0++;
                 continue;
-            } else if (cur->dirty) { //If not, check if the dirty bit is set
+            }
+            if (cur->dirty) { //If not, check if the dirty bit is set
                 //If yes, flush page to disk and use the page
                 cur->file->writePage(bufPool[cur->frameNo]);
             }
@@ -94,7 +96,7 @@ namespace badgerdb {
             hashTable->lookup(file, pageNo, frameId);
             page = &bufPool[frameId];
             // Set the refbit
-            bufDescTable[frameId].refbit = 1;
+            bufDescTable[frameId].refbit = true;
             // Increment the pin count
             bufDescTable[frameId].pinCnt++;
             return;
