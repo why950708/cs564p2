@@ -36,6 +36,7 @@ void test3();
 void test4();
 void test5();
 void test6();
+void test7();
 void testBufMgr();
 
 int main() 
@@ -146,6 +147,7 @@ void testBufMgr()
 	test4();
 	test5();
 	test6();
+	test7();
 
 	//Close files before deleting them
 	file1.~File();
@@ -319,3 +321,13 @@ void test6()
 
 	bufMgr->flushFile(file1ptr);
 }
+
+void test7(){
+	for (i = 1; i <= num; i++) {
+		bufMgr->readPage(file1ptr,i,page);
+	}
+	bufMgr->disposePage(file1ptr, 1);
+	bufMgr->readPage(file1ptr, 1, page);
+
+}
+

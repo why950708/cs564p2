@@ -37,6 +37,15 @@ namespace badgerdb {
 
 
     BufMgr::~BufMgr() {
+        // Clear the buf desc table
+        for (std::uint32_t i = 0; i < numBufs; i++) {
+            if (bufDescTable[i].dirty) {
+                bufDescTable[i].file->writePage(bufPool[i]);
+            }
+        }
+        delete[] bufDescTable;
+        delete[] bufPool;
+        delete hashTable;
     }
 
     void BufMgr::advanceClock() {
@@ -69,7 +78,7 @@ namespace badgerdb {
                 continue;
             }
             if (cur->pinCnt >
-                       0) { //If refbit not set, check if the page is pinned
+                0) { //If refbit not set, check if the page is pinned
                 // if pinned, advance clock, increment count of pinned frames
                 countPinnLargerThan0++;
                 continue;
@@ -123,7 +132,7 @@ namespace badgerdb {
     }
 
     void BufMgr::unPinPage(File *file, const PageId pageNo, const bool dirty) {
-        FrameId  frameId;
+        FrameId frameId;
         try {
             // Check if the picked page is in the buffer
             hashTable->lookup(file, pageNo, frameId);
@@ -131,7 +140,7 @@ namespace badgerdb {
             BufDesc *desc = &bufDescTable[frameId];
             // Check if the pinCnt is 0
             if (desc->pinCnt <= 0) {
-                throw PageNotPinnedException(file->filename(),pageNo,frameId);
+                throw PageNotPinnedException(file->filename(), pageNo, frameId);
             }
             // Decrement the pinCnt;
             desc->pinCnt--;
@@ -140,24 +149,24 @@ namespace badgerdb {
                 desc->dirty = true;
             }
         } catch (HashNotFoundException &e) {
-            std::cout<<"Cannot find the page trying to unpinning"<<std::endl;
-            std::cout<<e.message()<<std::endl;
+            std::cout << "Cannot find the page trying to unpinning" << std::endl;
+            std::cout << e.message() << std::endl;
             // TODO:Maybe need to exit here
         }
     }
 
     void BufMgr::flushFile(const File *file) {
         // Scan bufTable for pages belonging to the file
-        for (int i = 0; i < numBufs; i++) {
+        for (uint32_t i = 0; i < numBufs; i++) {
             BufDesc *buf = &bufDescTable[i];
             // TODO: might not be the same file
             // If the page belong to the file is not valid, throw BadBUfferException
             if (!buf->valid) {
-                throw BadBufferException(buf->frameNo,buf->dirty,buf->valid,buf->refbit);
+                throw BadBufferException(buf->frameNo, buf->dirty, buf->valid, buf->refbit);
             }
             if (buf->file == file) {
                 // If the page is pinned throw PagePinnedException
-                if (buf -> pinCnt > 0) {
+                if (buf->pinCnt > 0) {
                     throw PagePinnedException(file->filename(), buf->pageNo, buf->frameNo);
                 }
                 // If the page is dirty, write the page to the file
@@ -166,7 +175,7 @@ namespace badgerdb {
                 if (buf->dirty) {
                     try {
                         buf->file->writePage(bufPool[buf->frameNo]);
-                    } catch(InvalidPageException &e) {
+                    } catch (InvalidPageException &e) {
                         std::cout << "Trying flush file" << e.message() << std::endl;
                         exit(-1);
                     }
@@ -176,8 +185,8 @@ namespace badgerdb {
                 // TODO: may not need to catch the hashNotFound error
                 try {
                     hashTable->remove(buf->file, buf->pageNo);
-                } catch(HashNotFoundException &e) {
-                    std::cout <<"Trying flush file" << e.message() << std::endl;
+                } catch (HashNotFoundException &e) {
+                    std::cout << "Trying flush file" << e.message() << std::endl;
                     exit(-1);
                 }
                 // Clear the page frame
@@ -220,8 +229,8 @@ namespace badgerdb {
         // Try to find the page
         FrameId frameId;
 
-        try{
-            hashTable->lookup(file,PageNo, frameId);
+        try {
+            hashTable->lookup(file, PageNo, frameId);
             // If the page is found in the buffer pool, free the frame and deleter from hashTable
             bufDescTable[frameId].Clear();
             hashTable->remove(file, PageNo);
